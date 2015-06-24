@@ -2,8 +2,9 @@
 #include "adc.h" 
 #include "i2s_setup.h"
 #include "sines.h" 
+#include "gpio.h" 
 
-#define PLAY_SINES 1
+#define PLAY_SINES 0
 
 int main (void)
 {
@@ -14,6 +15,8 @@ int main (void)
     }
     /* Initialize ADCs */
     adc_setup_dma_scan();
+    /* Initialize GPIO (buttons) */
+    gpio_setup();
     while (1) {
         /* Wait for tx pointer to be non-null */
         while (!codecDmaTxPtr);
