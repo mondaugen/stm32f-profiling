@@ -2,9 +2,9 @@
 #define FLASH_COMMANDING_H 
 #include <stdint.h>
 
-#define FLASH_START_ADDR 0x0810c000
-#define FLASH_END_ADDR   0x08110000 
-#define FLASH_SECTOR     15
+#define FLASH_START_ADDR 0x08120000//0x0810c000
+#define FLASH_END_ADDR   0x08140000//0x08110000 
+#define FLASH_SECTOR     17//15
 /* Number of bytes that can be written or read at one time */
 #define FLASH_ACCESS_SIZE 4
 

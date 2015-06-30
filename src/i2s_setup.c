@@ -30,6 +30,8 @@ int __attribute__((optimize("O0"))) i2s_codec_config_pins_setup(void)
     /* set PB10 and PB11 to low to set word size to 16-bits and turn off
      * de-emphasis resp. */
     GPIOB->ODR &= ~((1 << 10) | (1 << 11));
+
+    /* for debugging */
 }
 
 /* This assumes i2s is configured as master */

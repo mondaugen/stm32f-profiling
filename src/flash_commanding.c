@@ -1,12 +1,26 @@
 #include "flash_commanding.h" 
 #include "stm32f4xx.h" 
 
+//#define FLASH_DEBUG 
+
 volatile uint32_t flash_state = 0;
 int flash_commanding_count = 0;
 
-#define TOMMYS_SIZE (492*4) 
-char tommy[TOMMYS_SIZE] = { [0 ... (TOMMYS_SIZE-1)] = 'c' };
-#define FLASH_DO_WRITE 0 
+#define TOMMYS_SIZE 100000//16000//8192//(492*4) 
+
+/* Align on 1K boundary so DMA bursts work */
+char tommy[TOMMYS_SIZE] __attribute__((aligned(1024)))
+    = { [0 ... (TOMMYS_SIZE-1)] = 'c' };
+
+#define GPIOG_PIN 13 
+
+#define FLASH_DMA_BASE DMA2_Stream6 
+#define FLASH_DMA_BASE_IRQHandler DMA2_Stream6_IRQHandler
+#define FLASH_DMA_BASE_IRQn DMA2_Stream6_IRQn
+#define DMA_HISR_TCIF() DMA_HISR_TCIF ## 6 
+#define DMA_HIFCR_CTCIF() DMA_HIFCR_CTCIF ## 6 
+#define DMA_HISR_TEIF() DMA_HISR_TEIF ## 6 
+#define DMA_HIFCR_CTEIF() DMA_HIFCR_CTEIF ## 6 
 
 void __attribute__((optimize("O0")))
 flash_commanding_gpio_setup(void)
@@ -27,6 +41,14 @@ flash_commanding_gpio_setup(void)
     /* Trigger on falling edge */
     EXTI->FTSR |= EXTI_FTSR_TR0;
     NVIC_EnableIRQ(EXTI0_IRQn);
+
+    /* For debugging */
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOGEN;
+    GPIOG->MODER |= (1 << (GPIOG_PIN*2));
+    int n;
+    for (n = 0; n < TOMMYS_SIZE/4; n++) {
+        ((int*)tommy)[n] = n;
+    }
 }
 
 void __attribute__((optimize("O0"))) EXTI0_IRQHandler(void)
@@ -84,6 +106,12 @@ void __attribute__((optimize("O0"))) flash_commanding_try_erase_then_write(void)
     if (flash_state 
             & (FLASH_CMD_WRITE_IN_PROGRESS | FLASH_CMD_ERASE_IN_PROGRESS)) {
         return; /* Already erasing or writing */
+    }
+    if (FLASH_DMA_BASE->CR & DMA_SxCR_EN) {
+        return; /* DMA is not done transferring. */
+    }
+    if (FLASH->SR & FLASH_SR_BSY) {
+        return; /* FLASH busy */
     }
     if ((flash_state & FLASH_CMD_WRITE_REQUEST)
             && (flash_state & FLASH_CMD_ERASE_REQUEST)) {
@@ -176,7 +204,24 @@ void __attribute__((optimize("O0"))) flash_commanding_try_writing_no_dma(void)
     }
 }
 
-
+#ifdef FLASH_DEBUG
+void __attribute__((optimize("O0"))) FLASH_IRQHandler(void)
+{
+    NVIC_ClearPendingIRQ(FLASH_IRQn);
+    if (FLASH->SR & FLASH_SR_EOP) {
+        /* Clear by writing one to this bit */
+        FLASH->SR |= FLASH_SR_EOP;
+        /* Turn off flash interrupt */
+        FLASH->CR &= ~FLASH_CR_EOPIE;
+        NVIC_DisableIRQ(FLASH_IRQn);
+        /* Reset sector erase bit */
+        FLASH->CR &= ~FLASH_CR_SER;
+        /* lock that flash */
+        FLASH->CR |= FLASH_CR_LOCK;
+        flash_state = 0x00000000;
+    }
+}
+#else
 void __attribute__((optimize("O0"))) FLASH_IRQHandler(void)
 {
     NVIC_ClearPendingIRQ(FLASH_IRQn);
@@ -200,32 +245,37 @@ void __attribute__((optimize("O0"))) FLASH_IRQHandler(void)
                 /* Turn on DMA2 clock */
                 RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN;
                 /* Reset control register */
-                DMA2_Stream7->CR = 0x00000000;
-                /* Set to channel 6, low priority, memory and peripheral datum
+                FLASH_DMA_BASE->CR = 0x00000000;
+                /* Set to channel 0, low priority, memory and peripheral datum
                  * size 32-bits, transfer complete interrupt enable, memory
                  * increment, peripheral (other memory) increment. */
-                DMA2_Stream7->CR |= (6 << 25)
-                    | (0x0 << 16)
+                FLASH_DMA_BASE->CR |= (0 << 25)
+                    | (0x3 << 16)
                     | (0x2 << 13)
                     | (0x2 << 11)
                     | (0x1 << 4)
                     | (0x2 << 6) /* memory to memory transfer */
                     | DMA_SxCR_MINC
-                    | DMA_SxCR_PINC;
+                    | DMA_SxCR_PINC
+                    | (0x1 << 21) /* incremental burst of 4 beats */
+                    | DMA_SxCR_TEIE; /* Transfer error interrupt enable */
+                /* Set FIFO threshold to full */
+                FLASH_DMA_BASE->FCR &= ~DMA_SxFCR_FTH;
+                FLASH_DMA_BASE->FCR |= (0x3 << 0);
                 /* Set peripheral address to data we want to write */
-                DMA2_Stream7->PAR = (uint32_t)tommy;
+                FLASH_DMA_BASE->PAR = (uint32_t)tommy;
                 /* Set memory address to some place */
-                DMA2_Stream7->M0AR = (uint32_t)FLASH_START_ADDR;
+                FLASH_DMA_BASE->M0AR = (uint32_t)FLASH_START_ADDR;
                 /* Set number of items to transfer */
-                DMA2_Stream7->NDTR = TOMMYS_SIZE / 4; /* divided by 4 because
+                FLASH_DMA_BASE->NDTR = TOMMYS_SIZE / 4; /* divided by 4 because
                                                          each datum 32 bits wide
                                                          */
     
                 /* Enable DMA2_Stream0 interrupt */
-                NVIC_EnableIRQ(DMA2_Stream7_IRQn);
+                NVIC_EnableIRQ(FLASH_DMA_BASE_IRQn);
 
                 /* Enable DMA2 */
-                DMA2_Stream7->CR |= DMA_SxCR_EN;
+                FLASH_DMA_BASE->CR |= DMA_SxCR_EN;
 
                 /* request to write has been acknowledged, clear this bit */
                 flash_state &= ~FLASH_CMD_WRITE_REQUEST;
@@ -235,18 +285,23 @@ void __attribute__((optimize("O0"))) FLASH_IRQHandler(void)
         }
     }
 }
+#endif /* FLASH_DEBUG */
 
-void __attribute__((optimize("O0"))) DMA2_Stream7_IRQHandler(void)
+void __attribute__((optimize("O0"))) FLASH_DMA_BASE_IRQHandler(void)
 {
-    NVIC_ClearPendingIRQ(DMA2_Stream7_IRQn);
-    if (DMA2->HISR & DMA_HISR_TCIF7) {
+    NVIC_ClearPendingIRQ(FLASH_DMA_BASE_IRQn);
+    if (DMA2->HISR & DMA_HISR_TCIF()) {
         /* Clear interrupt */
-        DMA2->HIFCR |= DMA_HIFCR_CTCIF7;
+        DMA2->HIFCR |= DMA_HIFCR_CTCIF();
         /* Disable DMA interrupt */
-        NVIC_DisableIRQ(DMA2_Stream7_IRQn);
+        NVIC_DisableIRQ(FLASH_DMA_BASE_IRQn);
+        /* Disable DMA. */
+        FLASH_DMA_BASE->CR &= ~DMA_SxCR_EN;
         if (flash_state & FLASH_CMD_WRITE_IN_PROGRESS) {
+            /* Toggle GPIO */
+            GPIOG->ODR ^= (1 << GPIOG_PIN);
             /* wait for flash to be free */
-            while (FLASH->SR & FLASH_SR_BSY);
+//            while (FLASH->SR & FLASH_SR_BSY);
             /* Reset program bit */
             FLASH->CR &= ~FLASH_CR_PG;
             /* lock that flash */
@@ -254,5 +309,10 @@ void __attribute__((optimize("O0"))) DMA2_Stream7_IRQHandler(void)
             /* Reset flash writing flag */
             flash_state &= ~FLASH_CMD_WRITE_IN_PROGRESS;
         }
+    }
+    if (DMA2->HISR & DMA_HISR_TEIF()) {
+        /* Transfer error occurred */
+        /* Clear interrupt */
+        DMA2->HIFCR |= DMA_HIFCR_CTEIF();
     }
 }

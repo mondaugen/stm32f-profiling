@@ -27,7 +27,7 @@ int main (void)
         while (!codecDmaTxPtr);
         int n;
         flash_commanding_try_erase_then_write();
-        sines_update_parameters(); 
+//        sines_update_parameters(); 
         for (n = 0; n < CODEC_DMA_BUF_LEN; n += CODEC_NUM_CHANNELS) {
 #if PLAY_SINES 
             codecDmaTxPtr[n] = FLOAT_TO_INT16(sines_tick());

@@ -137,7 +137,7 @@ void __attribute__((optimize("O0"))) adc_setup_dma_scan(void)
     /* Set to channel 0, very high priority, memory and peripheral datum size
      * 16-bits, transfer complete interrupt enable, memory increment . */
     DMA2_Stream4->CR |= (0 << 25)
-        | (0x3 << 16)
+        | (0x0 << 16)
         | (0x1 << 13)
         | (0x1 << 11)
         | (0x1 << 4)
@@ -164,7 +164,7 @@ void __attribute__((optimize("O0"))) adc_setup_dma_scan(void)
     /* Set to channel 2, very high priority, memory and peripheral datum size
      * 16-bits, transfer complete interrupt enable, memory increment . */
     DMA2_Stream0->CR |= (2 << 25)
-        | (0x3 << 16)
+        | (0x0 << 16)
         | (0x1 << 13)
         | (0x1 << 11)
         | (0x1 << 4)

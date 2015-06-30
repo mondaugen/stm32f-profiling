@@ -3,8 +3,11 @@
 #include "i2s_setup.h"
 #include "adc.h" 
 
-float freq[] = {440., 500., 540., 610.};
-float amp[]  = {1.,   0.5,  0.25, 0.125};
+float freq[] = {((float)CODEC_SAMPLE_RATE)/((float)CODEC_DMA_BUF_LEN),
+    500., 540., 610.};
+//float freq[] = {440., 500., 540., 610.};
+float amp[]  = {1.,   0,  0, 0};
+//float amp[]  = {1.,   0.5,  0.25, 0.125};
 
 inline void sines_update_parameters(void)
 {
