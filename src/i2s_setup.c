@@ -5,23 +5,23 @@
 #include "i2s_setup.h" 
 
 /* Where data to be transferred to CODEC reside */
-int16_t codecDmaTxBuf[CODEC_DMA_BUF_LEN * 2]
+static int16_t codecDmaTxBuf[CODEC_DMA_BUF_LEN * 2]
     __attribute__((section(".small_data"),aligned(1024)));
 /* Where data from CODEC reside */
-int16_t codecDmaRxBuf[CODEC_DMA_BUF_LEN * 2]
+static int16_t codecDmaRxBuf[CODEC_DMA_BUF_LEN * 2]
     __attribute__((section(".small_data"),aligned(1024)));
 /* Which half of transmit buffer we are at currently */
-int16_t * volatile codecDmaTxPtr
+static int16_t * volatile codecDmaTxPtr
     __attribute__((section(".small_data"))) = NULL;
 /* Which half of receive buffer we are at currently */
-int16_t * volatile codecDmaRxPtr
+static int16_t * volatile codecDmaRxPtr
     __attribute__((section(".small_data"))) = NULL;;
 
 #define NUM_DMA_IRQ_CHECKS 1000 
 char dma_irq_order[NUM_DMA_IRQ_CHECKS];
 int dma_irq_order_idx = 0;
 
-int __attribute__((optimize("O0"))) i2s_codec_config_pins_setup(void)
+void __attribute__((optimize("O0"))) i2s_codec_config_pins_setup(void)
 {
     /* Turn on clock for GPIOB and GPIOC pins */
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN | RCC_AHB1ENR_GPIOCEN;
@@ -296,7 +296,7 @@ void __attribute__((optimize("O0"))) DMA1_Stream0_IRQHandler(void)
     }
 }
 
-void __attribute__((optimize("O0"))) DMA1_Stream7_IRQHandler(void)
+void DMA1_Stream7_IRQHandler(void)
 {
     NVIC_ClearPendingIRQ(DMA1_Stream7_IRQn);
 //    dma_irq_order[dma_irq_order_idx++] = 1; /* TX == 1 */

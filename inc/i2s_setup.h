@@ -4,7 +4,7 @@
 #include <stdint.h> 
 #include <stddef.h> 
 
-#define CODEC_SAMPLE_RATE 44100//32000//
+#define CODEC_SAMPLE_RATE 16000//44100//16000//44100//32000//
 
 #define CODEC_NUM_CHANNELS 2
 
@@ -18,8 +18,6 @@
 #define INT16_TO_FLOAT(x) ((float)x/(float)32768)
 #define FLOAT_TO_INT16(x) ((int16_t)(x * 32768))
 
-extern int16_t * volatile codecDmaRxPtr;
-extern int16_t * volatile codecDmaTxPtr;
 extern int processing;
 extern int grace_ticks;
 

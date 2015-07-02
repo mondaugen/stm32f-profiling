@@ -522,6 +522,8 @@ void (*vector_table[]) (void) = {
     DMA2D_IRQHandler
 }; 
 
+extern int main (void);
+
 void Reset_Handler(void)
 {
     extern char _sdata, _sidata, _edata,

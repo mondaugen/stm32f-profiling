@@ -22,13 +22,15 @@ void audio_callback(int16_t *tx, int16_t *rx, size_t frames, size_t channels)
 #if AUDIO_CHOICE == AUDIO_THROUGH
     memcpy((void*)tx,(void*)rx,
             sizeof(int16_t)*frames*channels);
-#elif AUDIO_CHOICE == AUDIO_SINES
-    int n;
-    for (n = 0; n < frames; n++) {
-        codecDmaTxPtr[n*channels] = FLOAT_TO_INT16(fast_sines_tick());
-    }
 #elif AUDIO_CHOICE == AUDIO_ZEROS
    memset((void*)tx,0,sizeof(int16_t)*frames*channels); 
+#elif AUDIO_CHOICE == AUDIO_SINES
+    size_t n;
+    static float buf[CODEC_DMA_BUF_LEN/CODEC_NUM_CHANNELS];
+    fast_sines_tick(buf,frames);
+    for (n = 0; n < frames; n++) {
+        tx[n*channels] = FLOAT_TO_INT16(buf[n]);
+    }
 #endif /* AUDIO_CHOICE */
 }
 
@@ -36,12 +38,12 @@ int main (void)
 {
     fast_sines_setup();
     /* Initialize i2s */
-    if (i2s_dma_full_duplex_setup(CODEC_SAMPLE_RATE)) {
+//    if (i2s_dma_full_duplex_setup(CODEC_SAMPLE_RATE)) {
         /* Error occurred */
-        while(1);
-    }
+//        while(1);
+//    }
     /* Initialize ADCs */
-    timer_setup();
+//    timer_setup();
 //    adc_setup_dma_scan();
     /* Initialize GPIO (buttons) */
     flash_commanding_gpio_setup();

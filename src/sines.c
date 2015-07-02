@@ -2,6 +2,7 @@
 #include "sines.h" 
 #include "i2s_setup.h"
 #include "adc.h" 
+#include "mm_wavtab.h" 
 
 /* Cubic interpolation as described by Miller Puckette in his "Theory and
 * Technique of Electronic Music." Seems the best so far. */
@@ -39,11 +40,12 @@
 //float freq[] = {((float)CODEC_SAMPLE_RATE)
 //    /((float)(CODEC_DMA_BUF_LEN/CODEC_NUM_CHANNELS))/2. *1.1,
 //    500., 540., 610.};
-float freq[] = {440., 0., 0., 0.};
-//float freq[] = {440., 500., 540., 610.};
-float amp[]  = {.9,   0,  0, 0};
-//float amp[]  = {1.,   0.5,  0.25, 0.125};
-float sine_table[SINE_TABLE_SIZE];
+//float freq[] = {440., 0., 0., 0.};
+float freq[] = {440., 500., 540., 610.};
+//float amp[]  = {.9,   0,  0, 0};
+float amp[]  = {1.,   0.5,  0.25, 0.125};
+float sine_table_data[SINE_TABLE_SIZE];
+MMWavTab sine_table;
 
 inline void sines_update_parameters(void)
 {
@@ -75,28 +77,31 @@ void fast_sines_setup(void)
     int n;
     float phase = 0;
     for (n = 0; n < SINE_TABLE_SIZE; n++) {
-        sine_table[n] = sinf(phase);
+        sine_table_data[n] = sinf(phase);
         phase += 2*M_PI*1./((float)SINE_TABLE_SIZE);
     }
+    sine_table.samplerate = CODEC_SAMPLE_RATE;
+    ((MMArray*)(&sine_table))->length = SINE_TABLE_SIZE;
+    ((MMArray*)(&sine_table))->data = (void*)&sine_table_data;
 }
 
-float fast_sines_tick(void)
+/* This clobbers whatever is in buf */
+void fast_sines_tick(float *buf, size_t length)
 {
-    int k;
-    float x = 0;
+    size_t n, k;
     static float phase[] = {0,0,0,0};
-    for (k = 0; k < NUM_SINS; k++) {
-        float tmp;
-//        sine_table_lookup_cubic(&tmp,phase[k]);
-        sine_table_lookup_none(&tmp,phase[k]);
-        x += tmp*amp[k];
-        phase[k] += freq[k]/((float)CODEC_SAMPLE_RATE);
-        phase[k] = fmodf(phase[k],1.);
-//        phase[k] = phase[k] - (float)((int)phase[k]);
-//        if (phase[k] < 0) {
-//            phase[k] += 1.;
-//        }
+    for (n = 0; n < length; n++) {
+        buf[n] = 0;
+        for (k = 0; k < NUM_SINS; k++) {
+//            float tmp;
+            MMWavTab_get_interpLinear_flt_sum_(&sine_table,&buf[n],phase[k]);
+//            buf[n] += amp[k] * tmp;
+            phase[k] += freq[k]/MMWavTab_get_freq(&sine_table);
+//            while (phase[k] > SINE_TABLE_SIZE) {
+//                phase[k] -= SINE_TABLE_SIZE;
+//            }
+            phase[k] = MM_fwrap(phase[k],0.,SINE_TABLE_SIZE);
+        }
+        buf[n] /= (float)NUM_SINS;
     }
-    x /= (float)NUM_SINS;
-    return x;
 }
