@@ -2,14 +2,20 @@
 
 MEMORY
 {
-    /* Programs reside in bank 1, leaving bank 2 free to record into. */
+    /* Progsram1s reside in bank 1, leaving bank 2 free to record into. */
     flash (rx) : ORIGIN = 0x08000000, LENGTH = 1M
-    ram (rwx) : ORIGIN = 0x20000000, LENGTH = 192K
+    sram1 (rwx)  : ORIGIN = 0x20000000, LENGTH = 112K
+    sram2 (rwx)  : ORIGIN = 0x2001c000, LENGTH = 16K
+    sram3 (rwx)  : ORIGIN = 0x20020000, LENGTH = 64K
+    ccm (rw)   : ORIGIN = 0x10000000, LENGTH = 64K
 }
 
-_ram_start = ORIGIN(ram);
-/* _estack    = ORIGIN(ram) + LENGTH(ram) - 4; */
-_estack = 0x2002ffff;
+_sram1_start = ORIGIN(sram1);
+/* _estack    = ORIGIN(sram1) + LENGTH(sram1) - 4; */
+/* top of stack is top of SRAM */
+/* _estack = 0x2002ffff; */
+/* top of stack is top of core-coupled memory (ccm) */
+_estack = 0x1000ffff; 
 _Min_Heap_Size = 32K;
 _Min_Stack_Size = 32K;
 
@@ -45,7 +51,17 @@ SECTIONS
         *(.data*)
         . = ALIGN(4);
         _edata = .;
-    } >ram AT> flash
+    } >sram1 AT> flash
+    _sismall_data = LOADADDR(.small_data);
+    .small_data :
+    {
+        . = ALIGN(4);
+        _ssmall_data = .;
+        *(.small_data)
+        *(.small_data*)
+        . = ALIGN(4);
+        _esmall_data = .;
+    } >sram3 AT> flash
     .bss :
     {
         . = ALIGN(4);
@@ -58,7 +74,7 @@ SECTIONS
         _ebss = .;
         /* Needed by standard library, it seems */
         __bss_end__ = .;
-    } >ram
+    } >sram1
     ._user_heap_stack :
     {
         . = ALIGN(4);
@@ -66,7 +82,7 @@ SECTIONS
         . = . + _Min_Heap_Size;
         . = . + _Min_Stack_Size;
         . = ALIGN(4);
-    } >ram
+    } >ccm
     /DISCARD/ :
     {
         libc.a (*)

@@ -4,7 +4,7 @@
 #include <stdint.h> 
 #include <stddef.h> 
 
-#define CODEC_SAMPLE_RATE 44100//16000//44100//32000//
+#define CODEC_SAMPLE_RATE 44100//32000//
 
 #define CODEC_NUM_CHANNELS 2
 
@@ -20,8 +20,16 @@
 
 extern int16_t * volatile codecDmaRxPtr;
 extern int16_t * volatile codecDmaTxPtr;
+extern int processing;
+extern int grace_ticks;
 
 void i2s_setup(void);
 void i2s_full_duplex_setup(void);
 int i2s_dma_full_duplex_setup(uint32_t sr);
+/* This call back is provided with the input and output buffers, the number of
+ * frames and the number of channels. Given N samples in a buffer and M channels
+ * then there are N/M frames.
+ */
+extern void audio_callback(int16_t *tx, int16_t *rx,
+        size_t frames, size_t channels);
 #endif /* I2S_SETUP_H */

@@ -1,19 +1,25 @@
 #include "stm32f4xx.h"
+#include <stddef.h> 
 #include <math.h>
 #include <string.h> 
 #include "i2s_setup.h" 
 
 /* Where data to be transferred to CODEC reside */
-int16_t codecDmaTxBuf[CODEC_DMA_BUF_LEN * 2];
+int16_t codecDmaTxBuf[CODEC_DMA_BUF_LEN * 2]
+    __attribute__((section(".small_data"),aligned(1024)));
 /* Where data from CODEC reside */
-int16_t codecDmaRxBuf[CODEC_DMA_BUF_LEN * 2];
+int16_t codecDmaRxBuf[CODEC_DMA_BUF_LEN * 2]
+    __attribute__((section(".small_data"),aligned(1024)));
 /* Which half of transmit buffer we are at currently */
-int16_t * volatile codecDmaTxPtr = NULL;
+int16_t * volatile codecDmaTxPtr
+    __attribute__((section(".small_data"))) = NULL;
 /* Which half of receive buffer we are at currently */
-int16_t * volatile codecDmaRxPtr = NULL;
-/* Flag to check if processing is finished */
-int processingDone = 1;
-int numBufferUnderruns = 0;
+int16_t * volatile codecDmaRxPtr
+    __attribute__((section(".small_data"))) = NULL;;
+
+#define NUM_DMA_IRQ_CHECKS 1000 
+char dma_irq_order[NUM_DMA_IRQ_CHECKS];
+int dma_irq_order_idx = 0;
 
 int __attribute__((optimize("O0"))) i2s_codec_config_pins_setup(void)
 {
@@ -129,13 +135,15 @@ int __attribute__((optimize("O0"))) i2s_dma_full_duplex_setup(uint32_t sr)
     /* Set up DMA control register: */
     /* Channel 0 */
     DMA1_Stream7->CR &= ~DMA_SxCR_CHSEL;
-    /* Priority HIGH */
+    /* Priority VERY HIGH */
     DMA1_Stream7->CR &= ~DMA_SxCR_PL;
-    DMA1_Stream7->CR |= 0x2 << 16;
-    /* PBURST Single Transfer */
+    DMA1_Stream7->CR |= 0x3 << 16;
+    /* PBURST one burst of 8 beats */
     DMA1_Stream7->CR &= ~DMA_SxCR_PBURST;
-    /* MBURST Single Transfer */
+    DMA1_Stream7->CR |= 0x2 << 21;
+    /* MBURST one burst of 8 beats */
     DMA1_Stream7->CR &= ~DMA_SxCR_MBURST;
+    DMA1_Stream7->CR |= 0x2 << 23;
     /* No Double Buffer Mode (we do this ourselves with the HALF and FULL
      * transfer) */
     DMA1_Stream7->CR &= ~DMA_SxCR_DBM;
@@ -165,7 +173,7 @@ int __attribute__((optimize("O0"))) i2s_dma_full_duplex_setup(uint32_t sr)
     DMA1_Stream7->CR &= ~DMA_SxCR_TEIE;
     /* No interrupt on direct mode error */
     DMA1_Stream7->CR &= ~DMA_SxCR_DMEIE;
-
+    
     /* Set up peripheral to memory DMA */
     /* Disable DMA peripheral */
     if (DMA1_Stream0->CR & DMA_SxCR_EN) {
@@ -184,13 +192,15 @@ int __attribute__((optimize("O0"))) i2s_dma_full_duplex_setup(uint32_t sr)
     /* Channel 3 */
     DMA1_Stream0->CR &= ~DMA_SxCR_CHSEL;
     DMA1_Stream0->CR |= 0x3 << 25;
-    /* Priority HIGH */
+    /* Priority VERY HIGH */
     DMA1_Stream0->CR &= ~DMA_SxCR_PL;
-    DMA1_Stream0->CR |= 0x2 << 16;
-    /* PBURST Single Transfer */
+    DMA1_Stream0->CR |= 0x3 << 16;
+    /* PBURST one burst of 8 beats */
     DMA1_Stream0->CR &= ~DMA_SxCR_PBURST;
-    /* MBURST Single Transfer */
+    DMA1_Stream0->CR |= 0x2 << 21;
+    /* MBURST one burst of 8 beats */
     DMA1_Stream0->CR &= ~DMA_SxCR_MBURST;
+    DMA1_Stream0->CR |= 0x2 << 23;
     /* No Double Buffer Mode (we do this ourselves with the HALF and FULL
      * transfer) */
     DMA1_Stream0->CR &= ~DMA_SxCR_DBM;
@@ -265,31 +275,44 @@ int __attribute__((optimize("O0"))) i2s_dma_full_duplex_setup(uint32_t sr)
 void __attribute__((optimize("O0"))) DMA1_Stream0_IRQHandler(void)
 {
     NVIC_ClearPendingIRQ(DMA1_Stream0_IRQn);
+//    dma_irq_order[dma_irq_order_idx++] = 2; /* RX == 2 */
+    /* if still processing, throw an error */
+    /*
+    if (processing) {
+        HardFault_Handler();
+    }
+    */
     /* If transfer complete on stream 0 (peripheral to memory), set current rx
      * pointer to half of the buffer */
     if (DMA1->LISR & DMA_LISR_TCIF0) {
         /* clear flag */
         DMA1->LIFCR = DMA_LIFCR_CTCIF0;
-        codecDmaRxPtr = codecDmaRxBuf + CODEC_DMA_BUF_LEN;
     }
     /* If half of transfer complete on stream 0 (peripheral to memory), set current rx
      * pointer to beginning of the buffer */
     if (DMA1->LISR & DMA_LISR_HTIF0) {
         /* clear flag */
         DMA1->LIFCR = DMA_LIFCR_CHTIF0;
-        codecDmaRxPtr = codecDmaRxBuf;
     }
 }
 
 void __attribute__((optimize("O0"))) DMA1_Stream7_IRQHandler(void)
 {
     NVIC_ClearPendingIRQ(DMA1_Stream7_IRQn);
+//    dma_irq_order[dma_irq_order_idx++] = 1; /* TX == 1 */
+    /* if still processing, throw an error */
+    /*
+    if (processing) {
+        HardFault_Handler();
+    }
+    */
     /* If transfer complete on stream 5 (memory to peripheral), set current tx
      * pointer to half of the buffer */
     if (DMA1->HISR & DMA_HISR_TCIF7) {
         /* clear flag */
         DMA1->HIFCR = DMA_HIFCR_CTCIF7;
         codecDmaTxPtr = codecDmaTxBuf + CODEC_DMA_BUF_LEN;
+        codecDmaRxPtr = codecDmaRxBuf + CODEC_DMA_BUF_LEN;
     }
     /* If half of transfer complete on stream 5 (memory to peripheral), set current tx
      * pointer to beginning of the buffer */
@@ -297,5 +320,8 @@ void __attribute__((optimize("O0"))) DMA1_Stream7_IRQHandler(void)
         /* clear flag */
         DMA1->HIFCR = DMA_HIFCR_CHTIF7;
         codecDmaTxPtr = codecDmaTxBuf;
+        codecDmaRxPtr = codecDmaRxBuf;
     }
+    audio_callback(codecDmaTxPtr,codecDmaRxPtr,CODEC_DMA_BUF_LEN/CODEC_NUM_CHANNELS,
+            CODEC_NUM_CHANNELS);
 }

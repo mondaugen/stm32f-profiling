@@ -11,3 +11,18 @@ define armv7_time_function
     # print number of cycles it took
     printf "Number of cycles: %d\n", (*(0xe0001004))
 end
+
+# Time the number of clock cycles it takes to return to a breakpoint (only
+# works with looping or ISRs
+
+define armv7_time_loop
+    # enable cycle counter, set DWT_CTRL bit 0
+    call (*(0xe0001000)) |= 0x1
+    # reset counter, DWT_CYCCNT
+    call (*(0xe0001004)) = 0
+    # continue until breakpoint reached again
+    continue
+    # print number of cycles it took
+    printf "Number of cycles: %d\n", (*(0xe0001004))
+end
+

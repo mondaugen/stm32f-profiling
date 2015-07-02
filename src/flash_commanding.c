@@ -250,18 +250,19 @@ void __attribute__((optimize("O0"))) FLASH_IRQHandler(void)
                  * size 32-bits, transfer complete interrupt enable, memory
                  * increment, peripheral (other memory) increment. */
                 FLASH_DMA_BASE->CR |= (0 << 25)
-                    | (0x3 << 16)
+                    | (0x0 << 16)
                     | (0x2 << 13)
                     | (0x2 << 11)
                     | (0x1 << 4)
                     | (0x2 << 6) /* memory to memory transfer */
                     | DMA_SxCR_MINC
                     | DMA_SxCR_PINC
-                    | (0x1 << 21) /* incremental burst of 4 beats */
+                    | (0x0 << 23) /* no burst */
+                    | (0x0 << 21) /* no burst */
                     | DMA_SxCR_TEIE; /* Transfer error interrupt enable */
-                /* Set FIFO threshold to full */
                 FLASH_DMA_BASE->FCR &= ~DMA_SxFCR_FTH;
-                FLASH_DMA_BASE->FCR |= (0x3 << 0);
+                /* Set FIFO threshold to 1/4 */
+                FLASH_DMA_BASE->FCR |= (0x0 << 0);
                 /* Set peripheral address to data we want to write */
                 FLASH_DMA_BASE->PAR = (uint32_t)tommy;
                 /* Set memory address to some place */
