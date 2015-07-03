@@ -6,7 +6,7 @@
 volatile uint32_t flash_state = 0;
 int flash_commanding_count = 0;
 
-#define TOMMYS_SIZE 100000//16000//8192//(492*4) 
+#define TOMMYS_SIZE 4//100000//16000//8192//(492*4) 
 
 /* Align on 1K boundary so DMA bursts work */
 char tommy[TOMMYS_SIZE] __attribute__((aligned(1024)))

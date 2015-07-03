@@ -84,7 +84,7 @@ static void set_sys_clock(void)
         /* Wait for voltage regulator to switch */
         while (!(PWR->CSR & PWR_CSR_ODSWRDY));
         /* Configure Flash prefetch, Instruction cache, Data cache and wait state */
-        FLASH->ACR = FLASH_ACR_ICEN |FLASH_ACR_DCEN |FLASH_ACR_LATENCY_5WS;
+        FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN |FLASH_ACR_DCEN |FLASH_ACR_LATENCY_5WS;
         /* HCLK = SYSCLK / 1*/
         RCC->CFGR |= RCC_CFGR_HPRE_DIV1;
         /* PCLK2 = HCLK / 2*/

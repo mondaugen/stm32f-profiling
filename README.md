@@ -1,3 +1,11 @@
+HELLO
+-----
+
+This is some code that compares the speed of some math.
+
+INSTALLING
+----------
+
 CMSIS includes is a path to the Include folder in the CMSIS distribution
 from ARM.
 e.g.,

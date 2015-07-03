@@ -1,22 +1,27 @@
-CMSIS_INCLUDES=../../archives/CMSIS/Include
+CMSIS_INCLUDES=../../build/CMSIS/Include
+CMSIS_MATHLIB=../../build/CMSIS/Lib/GCC
+CMSIS_MATHSRC=../../build/CMSIS/DSP_Lib/Source/lib
 SRCS=$(wildcard src/*.c)
 BIN=main.elf
 OCD 		   = openocd -f /usr/share/openocd/scripts/board/stm32f4discovery.cfg
-OPTIMIZE=-Ofast
-INCPATHS=inc ../mm_dsp/inc ../mm_primitives/inc ../ne_datastructures/inc
-LIBPATHS=../mm_dsp/lib ../mm_primitives/lib ../ne_datastructures/lib
+PATHS   = ./ ../mm_dsp ../mm_primitives ../ne_datastructures
+INCPATHS= $(foreach path,$(PATHS),$(path)/inc) $(CMSIS_INCLUDES)
+LIBPATHS= $(foreach path,$(PATHS),$(path)/lib) $(CMSIS_MATHLIB)
 DEP=$(foreach inc,$(INCPATHS), $(wildcard $(inc)/*.h))
 DEP+=$(foreach lib,$(LIBPATHS), $(wildcard $(lib)/*.a))
 LIB=$(foreach lib,$(LIBPATHS),-L$(lib))
 INC=$(foreach inc,$(INCPATHS),-I$(inc))
 
+OPTIMIZE=-Ofast
+
 $(BIN) : $(SRCS) $(DEP)
-	arm-none-eabi-gcc -DSTM32F429_439xx $(filter %.c %.s, $^) $(INC) \
-		-I$(CMSIS_INCLUDES) $(LIB) -Wall \
+	arm-none-eabi-gcc -DSTM32F429_439xx -DARM_MATH_CM4\
+		$(filter %.c %.s, $^) $(INC) \
+		 $(LIB) -Wall \
 		-Tstm32f429.ld -o $@ -ggdb3 -mlittle-endian -mthumb -mcpu=cortex-m4 \
 		-mthumb-interwork -mfloat-abi=hard -mfpu=fpv4-sp-d16 -dD -lm \
-		-lmm_dsp -lmm_primitives -lne_datastructures \
-		--specs=nano.specs $(OPTIMIZE)
+		-lmm_dsp -lmm_primitives -lne_datastructures -larm_cortexM4lf_math \
+		--specs=nano.specs $(OPTIMIZE) -ffunction-sections
 
 flash: $(BIN)
 	$(OCD) -c init \
@@ -32,4 +37,4 @@ clean:
 	rm $(BIN)
 
 tags:
-	ctags -R . $(CMSIS_INCLUDES)
+	ctags -R . $(PATHS) $(CMSIS_INCLUDES) $(CMSIS_MATHSRC)

@@ -2,7 +2,6 @@
 #include "sines.h" 
 #include "i2s_setup.h"
 #include "adc.h" 
-#include "mm_wavtab.h" 
 
 /* Cubic interpolation as described by Miller Puckette in his "Theory and
 * Technique of Electronic Music." Seems the best so far. */
@@ -102,6 +101,31 @@ void fast_sines_tick(float *buf, size_t length)
 //            }
             phase[k] = MM_fwrap(phase[k],0.,SINE_TABLE_SIZE);
         }
+        buf[n] /= (float)NUM_SINS;
+    }
+}
+
+void faster_sines_tick(float *buf, uint32_t length)
+{
+    uint32_t n, k;
+    static float phase[NUM_SINS];
+    float phase_inc[NUM_SINS], wav_tab_freq;
+    wav_tab_freq = MMWavTab_get_freq(&sine_table);
+    phase_inc[0] = freq[0]/wav_tab_freq;
+    for (n = 0; n < length; n++) {
+        MMWavTab_get_interpLinear_flt_(&sine_table,&buf[n],phase[0]);
+        phase[0] += phase_inc[0];
+        phase[0] = MM_fwrap(phase[0],0.,SINE_TABLE_SIZE);
+    }
+    for (k = 1; k < NUM_SINS; k++) {
+        phase_inc[k] = freq[k]/wav_tab_freq;
+        for (n = 0; n < length; n++) {
+            MMWavTab_get_interpLinear_flt_sum_(&sine_table,&buf[n],phase[k]);
+            phase[k] += phase_inc[k];
+            phase[k] = MM_fwrap(phase[k],0.,SINE_TABLE_SIZE);
+        }
+    }
+    for (n = 0; n < length; n++) {
         buf[n] /= (float)NUM_SINS;
     }
 }

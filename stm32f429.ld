@@ -13,9 +13,9 @@ MEMORY
 _sram1_start = ORIGIN(sram1);
 /* _estack    = ORIGIN(sram1) + LENGTH(sram1) - 4; */
 /* top of stack is top of SRAM */
-/* _estack = 0x2002ffff; */
+//_estack = 0x2002ffff;
 /* top of stack is top of core-coupled memory (ccm) */
-_estack = 0x1000ffff; 
+_estack = 0x1000ffff;
 _Min_Heap_Size = 32K;
 _Min_Stack_Size = 32K;
 
@@ -61,7 +61,7 @@ SECTIONS
         *(.small_data*)
         . = ALIGN(4);
         _esmall_data = .;
-    } >sram3 AT> flash
+    } >sram2 AT> flash
     .bss :
     {
         . = ALIGN(4);
