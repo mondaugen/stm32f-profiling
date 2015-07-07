@@ -1,3 +1,4 @@
+#include <stdlib.h> 
 #include <math.h> 
 #include <stdint.h> 
 #include <string.h> 
@@ -10,7 +11,7 @@
 
 #define TEST_TABLE_LENGTH 2048 
 
-#define PROFILE_LINEAR_INTERP
+#define PROFILE_SAMPLE_PLAYER 
 
 #if defined PROFILE_DOT_PROD 
 float32_t result_a, result_b;
@@ -46,24 +47,32 @@ int __attribute__((optimize("O0"))) main (void)
 int __attribute__((optimize("O0"))) main (void)
 {
     float32_t index = 0;
+    float32_t randval;
     int64_t index_q32_32 = 0;
     int32_t index_q24_8 = 0;
     uint32_t time_taken;
     uint32_t time_taken_2;
+    randval = drand48()*127.;
     math_tests_interp_tests_setup(TEST_TABLE_LENGTH);
+    index = math_tests_pow2_calc();
+    index = math_tests_pow2_precalc();
+    index = math_tests_pow2_nolookup(randval);
+    index = math_tests_pow2_lookup(randval);
     math_tests_li(&index);
     math_tests_li_ws(&index);
     math_tests_li_q_32_32(&index_q32_32);
     math_tests_li_fast_wrap(&index);
-    timer_setup();
+//    timer_setup();
     ntimeouts = 0;
     math_tests_li_q_24_8(&index_q24_8);
     time_taken = ntimeouts;
     index_q24_8 = 0;
-    TIM2->CNT = 0;
+//    TIM2->CNT = 0;
     ntimeouts = 0;
     math_tests_ci_q_24_8(&index_q24_8);
-    time_taken_2 = ntimeouts;
+//    time_taken_2 = ntimeouts;
+    index_q24_8 = 0;
+    math_tests_ci_q_24_8_long(&index_q24_8);
     while (1);
 }
 #endif
