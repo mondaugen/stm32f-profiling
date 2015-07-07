@@ -22,6 +22,7 @@ void timer_setup(void)
     TIM2->DIER |= TIM_DIER_UIE;
     /* Enable interrupts in NVIC */
     NVIC_EnableIRQ(TIM2_IRQn);
+    TIM2->CNT = 0;
     /* Enable timer */
     TIM2->CR1 |= TIM_CR1_CEN;
 }
