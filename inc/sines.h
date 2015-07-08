@@ -12,6 +12,7 @@ extern MMWavTab sine_table;
 void fast_sines_tick(float *buf, size_t length);
 void faster_sines_tick(float *buf, uint32_t length);
 void fast_sines_setup(void);
+void fast_sines_setup_one_table(void);
 inline float sines_tick(void);
 inline void sines_update_parameters(void);
 #endif /* SINES_H */

@@ -84,6 +84,19 @@ void fast_sines_setup(void)
     ((MMArray*)(&sine_table))->data = (void*)&sine_table_data;
 }
 
+/* Fills table with ones for testing */
+void fast_sines_setup_one_table(void)
+{
+    int n;
+    float phase = 0;
+    for (n = 0; n < SINE_TABLE_SIZE; n++) {
+        sine_table_data[n] = 1.0;
+    }
+    sine_table.samplerate = CODEC_SAMPLE_RATE;
+    ((MMArray*)(&sine_table))->length = SINE_TABLE_SIZE;
+    ((MMArray*)(&sine_table))->data = (void*)&sine_table_data;
+}
+
 /* This clobbers whatever is in buf */
 void fast_sines_tick(float *buf, size_t length)
 {

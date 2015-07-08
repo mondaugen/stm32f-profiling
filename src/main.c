@@ -37,8 +37,6 @@ int __attribute__((optimize("O0"))) main (void)
 #elif defined PROFILE_SAMPLE_PLAYER
 int __attribute__((optimize("O0"))) main (void)
 {
-    float x;
-    x = MMCC_MIDItoRate(60.);
     mm_dsp_tests_setup();
     mm_dsp_test_tick();
     while (1);
